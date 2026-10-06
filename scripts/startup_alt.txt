@@ -1,0 +1,6 @@
+# Альтернативный стартовый скрипт для второго Linux-скрипта.
+
+ls "second test"
+unknown_command
+cd "/another path"
+exit
