@@ -36,60 +36,67 @@ COMMANDS = {
 }
 
 
-def execute_script(script_path: str, vfs_path: str, debug: bool = False):
-    if not os.path.isfile(script_path):
-        print(f"Ошибка: файл скрипта '{script_path}' не найден.", file=sys.stderr)
-        return False
-    print(f"=== Выполнение стартового скрипта: {script_path} ===")
+def _run_command(line: str) -> None:
+    parts = shlex.split(line)
+    if not parts:
+        return
+    cmd = parts[0]
+    handler = COMMANDS.get(cmd)
+    if handler is None:
+        raise ValueError(f"неизвестная команда '{cmd}'")
+    handler(parts[1:])
+
+
+def _run_script_line(line: str, vfs_path: str) -> bool:
+    prompt = get_prompt(vfs_path)
+    print(f"{prompt}{line}")
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-    except OSError as e:
-        print(f"Ошибка чтения скрипта: {e}", file=sys.stderr)
+        _run_command(line)
+    except ValueError as exc:
+        print(f"Ошибка: {exc}")
+        return False
+    except Exception as exc:
+        print(f"Ошибка выполнения: {exc}")
+        return False
+    return True
+
+
+def execute_script(script_path: str, vfs_path: str) -> bool:
+    if not os.path.isfile(script_path):
+        print(f"Файл скрипта '{script_path}' не найден.",
+              file=sys.stderr)
+        return False
+
+    print(f"=== Выполнение стартового скрипта: {script_path} ===")
+
+    try:
+        with open(script_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+    except OSError as exc:
+        print(f"Ошибка чтения скрипта: {exc}", file=sys.stderr)
         return False
 
     error_count = 0
-    for line_num, raw_line in enumerate(lines, 1):
+    for raw_line in lines:
         line = raw_line.strip()
-        if not line or line.startswith("#") or line.startswith("//"):
-            continue
-        prompt = get_prompt(vfs_path)
-        print(f"{prompt}{line}")
-
-        try:
-            parts = shlex.split(line)
-        except ValueError as e:
-            print(f"Ошибка разбора строки {line_num}: {e}")
-            error_count += 1
-            continue
-
-        if not parts:
-            continue
-
-        cmd = parts[0]
-        args = parts[1:]
-        handler = COMMANDS.get(cmd)
-        if handler is None:
-            print(f"Ошибка: неизвестная команда '{cmd}'")
-            error_count += 1
+        if not line or line.startswith(("#", "//")):
             continue
 
         try:
-            handler(args)
-        except ValueError as e:
-            print(f"Ошибка: {e}")
-            error_count += 1
+            ok = _run_script_line(line, vfs_path)
         except SystemExit:
             break
-        except Exception as e:
-            print(f"Ошибка выполнения: {e}")
+
+        if not ok:
             error_count += 1
+
     print(f"=== Скрипт завершён. Ошибочных строк: {error_count} ===")
     return error_count == 0
 
 
-def run_interactive(vfs_path: str):
+def run_interactive(vfs_path: str) -> None:
     print("Введите команду. Для выхода используйте exit.")
+
     while True:
         try:
             line = input(get_prompt(vfs_path))
@@ -100,33 +107,18 @@ def run_interactive(vfs_path: str):
         line = line.strip()
         if not line:
             continue
+
         try:
-            parts = shlex.split(line)
-        except ValueError as e:
-            print(f"Ошибка разбора: {e}")
-            continue
-
-        if not parts:
-            continue
-
-        cmd = parts[0]
-        args = parts[1:]
-        handler = COMMANDS.get(cmd)
-
-        if handler is None:
-            print(f"Ошибка: неизвестная команда '{cmd}'")
-            continue
-        try:
-            handler(args)
-        except ValueError as e:
-            print(f"Ошибка: {e}")
-        except Exception as e:
-            print(f"Ошибка выполнения: {e}")
+            _run_command(line)
+        except ValueError as exc:
+            print(f"Ошибка: {exc}")
+        except Exception as exc:
+            print(f"Ошибка выполнения: {exc}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Эмулятор командной оболочки UNIX-подобной ОС (Вариант №18, этап 2)."
+        description="Эмулятор командной оболочки UNIX-подобной ОС"
     )
     parser.add_argument(
         "--vfs",
@@ -148,7 +140,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     print("=== Параметры запуска ===")
@@ -157,7 +149,7 @@ def main():
     print("=========================")
 
     if args.startup:
-        success = execute_script(args.startup, args.vfs, debug=args.debug)
+        success = execute_script(args.startup, args.vfs)
         if not success:
             print("Скрипт завершился с ошибками.", file=sys.stderr)
             sys.exit(1)
