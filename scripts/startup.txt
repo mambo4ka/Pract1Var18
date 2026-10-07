@@ -1,9 +1,0 @@
-# Стартовый скрипт эмулятора.
-# Проверяет обычную команду, кавычки и обработку ошибки.
-
-ls
-ls "file with spaces.txt"
-cd "/virtual path"
-cd
-unknown_command
-exit
