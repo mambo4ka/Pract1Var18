@@ -19,9 +19,14 @@ class Stage2Tests(unittest.TestCase):
             cwd=ROOT,
             text=True,
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
         )
         self.assertIn("VFS: ./data/vfs", result.stdout)
-        self.assertIn("Startup script: ./scripts/startup_alt.txt", result.stdout)
+        self.assertIn(
+            "Startup script: ./scripts/startup_alt.txt",
+            result.stdout,
+        )
 
     def test_missing_startup_script_is_reported(self):
         result = subprocess.run(
@@ -34,10 +39,11 @@ class Stage2Tests(unittest.TestCase):
             cwd=ROOT,
             text=True,
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
         )
         self.assertEqual(result.returncode, 1)
         self.assertIn("не найден", result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()
